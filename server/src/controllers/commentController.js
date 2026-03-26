@@ -8,6 +8,7 @@ const Track = require('../models/Track');
 const Notification = require('../models/Notification');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
+const EVENT = require('../socket/events');
 
 /**
  * Create comment on track
@@ -16,6 +17,7 @@ const asyncHandler = require('../utils/asyncHandler');
  */
 const createComment = asyncHandler(async (req, res, next) => {
   const { trackId, text, timestamp = 0, parentId } = req.body;
+  const io = req.app.get('io');
 
   const track = await Track.findById(trackId);
   if (!track) {
@@ -46,8 +48,12 @@ const createComment = asyncHandler(async (req, res, next) => {
 
   await comment.populate('userId', 'username displayName avatar');
 
+  if (io) {
+    io.to(`track:${trackId}`).emit(EVENT.TRACK_COMMENT, { comment });
+  }
+
   if (!isOwner || req.userId.toString() !== track.userId.toString()) {
-    await Notification.createNotification({
+    const notification = await Notification.createNotification({
       userId: track.userId,
       type: 'comment',
       payload: {
@@ -59,6 +65,12 @@ const createComment = asyncHandler(async (req, res, next) => {
         message: `${req.user.displayName} commented on "${track.title}"`,
       },
     });
+
+    if (io && track.userId.toString() !== req.userId.toString()) {
+      io.to(`user:${track.userId.toString()}`).emit(EVENT.NOTIFICATION_NEW, {
+        notification: notification.toObject(),
+      });
+    }
   }
 
   res.status(201).json({
@@ -69,13 +81,18 @@ const createComment = asyncHandler(async (req, res, next) => {
 
 /**
  * Get comments for track
- * @route GET /api/comments/track/:trackId
- * @access Public
+ * @route GET /api/comments/:trackId
+ * @access Private
  */
-const getTrackComments = asyncHandler(async (req, res, next) => {
-  const { page = 1, limit = 50 } = req.query;
+const getComments = asyncHandler(async (req, res, next) => {
+  const trackId = req.params.trackId;
+  let page = parseInt(req.query.page) || 1;
+  let limit = parseInt(req.query.limit) || 50;
+  
+  if (limit > 100) limit = 100;
+  if (page < 1) page = 1;
 
-  const track = await Track.findById(req.params.trackId);
+  const track = await Track.findById(trackId);
   if (!track) {
     throw ApiError.notFound('Track not found');
   }
@@ -88,7 +105,7 @@ const getTrackComments = asyncHandler(async (req, res, next) => {
   }
 
   const comments = await Comment.find({ 
-    trackId: req.params.trackId,
+    trackId,
     parentId: null,
   })
     .populate('userId', 'username displayName avatar')
@@ -99,12 +116,12 @@ const getTrackComments = asyncHandler(async (req, res, next) => {
         select: 'username displayName avatar',
       },
     })
-    .sort('-createdAt')
+    .sort('timestamp')
     .skip((page - 1) * limit)
-    .limit(parseInt(limit));
+    .limit(limit);
 
   const total = await Comment.countDocuments({ 
-    trackId: req.params.trackId,
+    trackId,
     parentId: null,
   });
 
@@ -112,8 +129,8 @@ const getTrackComments = asyncHandler(async (req, res, next) => {
     success: true,
     data: comments,
     pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
       total,
       pages: Math.ceil(total / limit),
     },
@@ -127,6 +144,7 @@ const getTrackComments = asyncHandler(async (req, res, next) => {
  */
 const updateComment = asyncHandler(async (req, res, next) => {
   const { text } = req.body;
+  const io = req.app.get('io');
 
   const comment = await Comment.findById(req.params.id);
 
@@ -142,6 +160,10 @@ const updateComment = asyncHandler(async (req, res, next) => {
   await comment.save();
   await comment.populate('userId', 'username displayName avatar');
 
+  if (io) {
+    io.to(`track:${comment.trackId.toString()}`).emit(EVENT.TRACK_COMMENT, { comment });
+  }
+
   res.json({
     success: true,
     data: comment,
@@ -155,6 +177,7 @@ const updateComment = asyncHandler(async (req, res, next) => {
  */
 const deleteComment = asyncHandler(async (req, res, next) => {
   const comment = await Comment.findById(req.params.id);
+  const io = req.app.get('io');
 
   if (!comment) {
     throw ApiError.notFound('Comment not found');
@@ -169,8 +192,15 @@ const deleteComment = asyncHandler(async (req, res, next) => {
     throw ApiError.forbidden('You can only delete your own comments or comments on your tracks');
   }
 
+  const trackId = comment.trackId.toString();
+  const commentId = comment._id.toString();
+
   await Comment.deleteMany({ parentId: req.params.id });
   await Comment.findByIdAndDelete(req.params.id);
+
+  if (io) {
+    io.to(`track:${trackId}`).emit(EVENT.COMMENT_DELETED, { commentId });
+  }
 
   res.json({
     success: true,
@@ -185,6 +215,7 @@ const deleteComment = asyncHandler(async (req, res, next) => {
  */
 const addReaction = asyncHandler(async (req, res, next) => {
   const { type } = req.body;
+  const io = req.app.get('io');
 
   const validTypes = ['like', 'heart', 'laugh', 'wow', 'sad'];
   if (!validTypes.includes(type)) {
@@ -201,11 +232,14 @@ const addReaction = asyncHandler(async (req, res, next) => {
     r => r.userId.toString() === req.userId.toString()
   );
 
+  let reactionAction = 'added';
   if (existingReactionIndex > -1) {
     if (comment.reactions[existingReactionIndex].type === type) {
       comment.reactions.splice(existingReactionIndex, 1);
+      reactionAction = 'removed';
     } else {
       comment.reactions[existingReactionIndex].type = type;
+      reactionAction = 'changed';
     }
   } else {
     comment.reactions.push({ userId: req.userId, type });
@@ -213,6 +247,13 @@ const addReaction = asyncHandler(async (req, res, next) => {
 
   await comment.save();
   await comment.populate('userId', 'username displayName avatar');
+
+  if (io) {
+    io.to(`track:${comment.trackId.toString()}`).emit(EVENT.COMMENT_REACTION, {
+      comment,
+      reaction: { userId: req.userId.toString(), type, action: reactionAction },
+    });
+  }
 
   res.json({
     success: true,
@@ -321,7 +362,9 @@ const markAllNotificationsRead = asyncHandler(async (req, res, next) => {
 
 module.exports = {
   createComment,
-  getTrackComments,
+  getComments,
+  getTrackComments: getComments,
+  updateComment,
   updateComment,
   deleteComment,
   addReaction,

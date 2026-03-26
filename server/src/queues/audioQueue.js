@@ -11,6 +11,7 @@ const getAudioDuration = require('get-audio-duration');
 const env = require('../config/env');
 const Track = require('../models/Track');
 const ApiError = require('../utils/ApiError');
+const EVENT = require('../socket/events');
 
 let io;
 
@@ -31,7 +32,7 @@ const setIO = (ioInstance) => {
  */
 const emitUploadComplete = (userId, data) => {
   if (io) {
-    io.to(`user:${userId}`).emit('upload:complete', data);
+    io.to(`user:${userId}`).emit(EVENT.UPLOAD_COMPLETE, data);
   }
 };
 

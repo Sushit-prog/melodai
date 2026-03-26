@@ -4,7 +4,7 @@
  */
 
 const express = require('express');
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const router = express.Router();
 const commentController = require('../controllers/commentController');
 const { authenticate } = require('../middleware/auth');
@@ -15,13 +15,15 @@ router.post('/', authenticate, apiLimiter, [
   body('trackId').isMongoId().withMessage('Invalid track ID'),
   body('text').notEmpty().withMessage('Comment text is required')
     .isLength({ max: 1000 }).withMessage('Comment cannot exceed 1000 characters'),
-  body('timestamp').optional().isInt({ min: 0 }),
+  body('timestamp').optional().isFloat({ min: 0 }),
   body('parentId').optional().isMongoId(),
 ], asyncHandler(commentController.createComment));
 
-router.get('/track/:trackId', [
+router.get('/:trackId', authenticate, [
   param('trackId').isMongoId().withMessage('Invalid track ID'),
-], asyncHandler(commentController.getTrackComments));
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 100 }),
+], asyncHandler(commentController.getComments));
 
 router.put('/:id', authenticate, [
   param('id').isMongoId().withMessage('Invalid comment ID'),

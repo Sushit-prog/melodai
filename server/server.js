@@ -11,6 +11,7 @@ const { Server } = require('socket.io');
 const Redis = require('ioredis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { setIO: setAudioQueueIO } = require('./src/queues/audioQueue');
+const socketManager = require('./src/socket/socketManager');
 
 let io;
 
@@ -43,23 +44,21 @@ const startServer = async () => {
     setAudioQueueIO(io);
 
     io.use((socket, next) => {
-      const userId = socket.handshake.auth.userId;
-      if (!userId) {
-        return next(new Error('Authentication error'));
-      }
-      socket.userId = userId;
-      next();
+      socketManager.authenticateSocket(socket, next);
     });
 
     io.on('connection', (socket) => {
       console.log(`Socket connected: ${socket.id}, user: ${socket.userId}`);
       
-      socket.join(`user:${socket.userId}`);
+      socketManager.joinUserRoom(socket, socket.userId);
+      socketManager.setupSocketHandlers(io, socket);
       
       socket.on('disconnect', () => {
         console.log(`Socket disconnected: ${socket.id}`);
       });
     });
+
+    app.set('io', io);
 
     httpServer.listen(PORT, () => {
       console.log(`
