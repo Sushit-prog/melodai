@@ -44,12 +44,4 @@ router.delete('/:id/reactions', authenticate, [
   param('id').isMongoId().withMessage('Invalid comment ID'),
 ], asyncHandler(commentController.removeReaction));
 
-router.get('/notifications', authenticate, asyncHandler(commentController.getNotifications));
-
-router.put('/notifications/:id/read', authenticate, [
-  param('id').isMongoId().withMessage('Invalid notification ID'),
-], asyncHandler(commentController.markNotificationRead));
-
-router.put('/notifications/read-all', authenticate, asyncHandler(commentController.markAllNotificationsRead));
-
 module.exports = router;
