@@ -17,6 +17,7 @@ const commentRoutes = require('./src/routes/comments');
 const notificationRoutes = require('./src/routes/notifications');
 const versionRoutes = require('./src/routes/versions');
 const userRoutes = require('./src/routes/users');
+const aiRoutes = require('./src/routes/ai');
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/versions', versionRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.use((req, res, next) => {
   next(new Error(`Route ${req.originalUrl} not found`));

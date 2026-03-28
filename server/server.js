@@ -10,7 +10,8 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const Redis = require('ioredis');
 const { createAdapter } = require('@socket.io/redis-adapter');
-const { setIO: setAudioQueueIO } = require('./src/queues/audioQueue');
+const { setIO: setAudioQueueIO, setAIQueue: setAudioQueueAI } = require('./src/queues/audioQueue');
+const { setIO: setAIQueueIO } = require('./src/queues/aiQueue');
 const socketManager = require('./src/socket/socketManager');
 
 let io;
@@ -42,6 +43,11 @@ const startServer = async () => {
     io.adapter(createAdapter(pubClient, subClient));
 
     setAudioQueueIO(io);
+    setAIQueueIO(io);
+
+    const audioQueue = require('./src/queues/audioQueue');
+    const aiQueue = require('./src/queues/aiQueue');
+    setAudioQueueAI(aiQueue);
 
     io.use((socket, next) => {
       socketManager.authenticateSocket(socket, next);

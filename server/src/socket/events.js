@@ -8,6 +8,11 @@ module.exports = {
   UPLOAD_COMPLETE: 'upload:complete',
   UPLOAD_ERROR: 'upload:error',
 
+  AI_ANALYSIS_COMPLETE: 'ai:analysis-complete',
+  AI_ANALYSIS_FAILED: 'ai:analysis-failed',
+  AI_FEEDBACK_READY: 'ai:feedback-ready',
+  AI_GENRE_TAG_COMPLETE: 'ai:genre-tag-complete',
+
   TRACK_COMMENT: 'new-comment',
   COMMENT_DELETED: 'comment-deleted',
   COMMENT_REACTION: 'comment-reaction',

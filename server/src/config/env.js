@@ -25,6 +25,7 @@ const optionalVars = [
   'S3_BUCKET',
   'S3_REGION',
   'S3_ENDPOINT',
+  'GEMINI_API_KEY',
 ];
 
 /**
@@ -62,6 +63,7 @@ const env = {
   S3_REGION: process.env.S3_REGION,
   S3_BUCKET: process.env.S3_BUCKET,
   S3_ENDPOINT: process.env.S3_ENDPOINT,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   isProduction: process.env.NODE_ENV === 'production',
   isDevelopment: process.env.NODE_ENV === 'development',
 };

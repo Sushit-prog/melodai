@@ -13,6 +13,14 @@ const Track = require('../models/Track');
 const ApiError = require('../utils/ApiError');
 const EVENT = require('../socket/events');
 
+let addAIAnalysisJob = null;
+let aiQueueModule = null;
+
+const setAIQueue = (module) => {
+  aiQueueModule = module;
+  addAIAnalysisJob = module.addAnalysisJob;
+};
+
 let io;
 
 /**
@@ -130,6 +138,15 @@ const processAudioJob = async (job) => {
       status: 'completed',
     });
 
+    if (addAIAnalysisJob && env.GEMINI_API_KEY) {
+      try {
+        await addAIAnalysisJob(trackId, audioUrl, userId);
+        console.log(`AI analysis job queued for track: ${trackId}`);
+      } catch (error) {
+        console.error(`Failed to queue AI analysis for track ${trackId}:`, error.message);
+      }
+    }
+
     console.log(`Audio processing complete for track: ${trackId}`);
 
     return {
@@ -215,4 +232,5 @@ module.exports = {
   closeQueue,
   processAudioJob,
   setIO,
+  setAIQueue,
 };
