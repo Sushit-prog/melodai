@@ -14,9 +14,13 @@ const env = require('../config/env');
  * @param {Object} res
  */
 const devError = (err, res) => {
-  res.status(err.statusCode).json({
+  let statusCode = err.statusCode || err.status || 500;
+  if (typeof statusCode !== 'number' || statusCode < 100 || statusCode > 599) {
+    statusCode = 500;
+  }
+  res.status(statusCode).json({
     success: false,
-    status: err.statusCode,
+    status: statusCode,
     message: err.message,
     errors: err.errors || [],
     stack: err.stack,
@@ -30,10 +34,14 @@ const devError = (err, res) => {
  * @param {Object} res
  */
 const prodError = (err, res) => {
+  let statusCode = err.statusCode || err.status || 500;
+  if (typeof statusCode !== 'number' || statusCode < 100 || statusCode > 599) {
+    statusCode = 500;
+  }
   if (err.isOperational) {
-    return res.status(err.statusCode).json({
+    return res.status(statusCode).json({
       success: false,
-      status: err.statusCode,
+      status: statusCode,
       message: err.message,
       errors: err.errors || [],
     });
@@ -106,7 +114,10 @@ const handleJWTExpiredError = () =>
  */
 const errorHandler = (err, req, res, next) => {
   let error = { ...err };
-  error.statusCode = err.statusCode || 500;
+  error.statusCode = err.statusCode || err.status || 500;
+  if (typeof error.statusCode !== 'number' || error.statusCode < 100 || error.statusCode > 599) {
+    error.statusCode = 500;
+  }
   error.message = err.message || 'Server Error';
 
   if (env.isDevelopment) {
