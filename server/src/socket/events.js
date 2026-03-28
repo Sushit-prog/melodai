@@ -16,6 +16,9 @@ module.exports = {
   COLLAB_JOIN: 'collab:join',
   COLLAB_LEAVE: 'collab:leave',
 
+  VERSION_CREATED: 'version:created',
+  VERSION_ROLLBACK: 'version:rollback',
+
   CURSOR_UPDATE: 'cursor:update',
   TYPING_COMMENT: 'typing:comment',
   PRESENCE_UPDATED: 'presence:updated',

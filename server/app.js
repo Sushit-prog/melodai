@@ -15,6 +15,7 @@ const authRoutes = require('./src/routes/auth');
 const trackRoutes = require('./src/routes/tracks');
 const commentRoutes = require('./src/routes/comments');
 const notificationRoutes = require('./src/routes/notifications');
+const versionRoutes = require('./src/routes/versions');
 const userRoutes = require('./src/routes/users');
 
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/versions', versionRoutes);
 app.use('/api/users', userRoutes);
 
 app.use((req, res, next) => {
